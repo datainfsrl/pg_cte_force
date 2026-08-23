@@ -1,0 +1,4 @@
+-- pg_cte_force non espone oggetti SQL: tutto il comportamento
+-- passa dal GUC "pg_cte_force.mode" e dall'hook post_parse_analyze
+-- definiti in _PG_init(). Questo script esiste solo perché
+-- CREATE EXTENSION lo richiede.

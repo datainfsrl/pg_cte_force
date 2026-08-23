@@ -1,0 +1,23 @@
+services:
+  pg-dev:
+    build:
+      context: .
+      args:
+        PG_MAJOR: "18"          # cambia per testare su 12..18
+    container_name: pg_cte_force_dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: extdev
+      # Passata dall'host: esporta ANTHROPIC_API_KEY prima di `docker compose up`
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "5433:5432"             # 5433 per non collidere con un postgres locale
+    volumes:
+      - ./src:/extension         # codice sorgente dell'estensione, editabile da host/Claude
+      - pgdata:/var/lib/postgresql   # dalla 18 il mount va sulla dir padre, non su .../data
+    stdin_open: true
+    tty: true
+
+volumes:
+  pgdata:
