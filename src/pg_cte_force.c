@@ -14,7 +14,7 @@ PG_MODULE_MAGIC;
 
 
 /*
- * Modalità di funzionamento.
+ * Operating modes.
  */
 typedef enum
 {
@@ -25,13 +25,13 @@ typedef enum
 
 
 /*
- * GUC corrente.
+ * Current GUC value.
  */
 static int cte_force_mode = CTE_FORCE_DEFAULT;
 
 
 /*
- * Valori accettati da:
+ * Values accepted by:
  *
  * SET pg_cte_force.mode = '...';
  */
@@ -45,26 +45,20 @@ static const struct config_enum_entry cte_mode_options[] =
 
 
 /*
- * Hook precedentemente installato da un'altra estensione.
+ * Hook previously installed by another extension.
  */
 static post_parse_analyze_hook_type prev_post_parse_analyze_hook = NULL;
 
 
 /*
- * Walker dell'albero Query.
+ * Query tree walker.
  *
- * IMPORTANTE:
+ *  - subqueries present in RTEs
+ *  - CTEs contained in cteList
+ *  - SubLinks
+ *  - expressions
  *
- * Non utilizziamo QTW_EXAMINE_RTES_BEFORE.
- *
- * Con flags = 0 query_tree_walker() continua comunque a visitare:
- *
- *  - subquery presenti nelle RTE
- *  - CTE contenute nelle cteList
- *  - SubLink
- *  - espressioni
- *
- * ma NON passa RangeTblEntry direttamente al callback.
+ * but does NOT pass RangeTblEntry directly to the callback.
  */
 static bool
 force_cte_materialization_walker(Node *node, void *context)
@@ -73,9 +67,9 @@ force_cte_materialization_walker(Node *node, void *context)
         return false;
 
     /*
-     * Query è un caso speciale.
+     * Query is a special case.
      *
-     * Non deve essere passata direttamente a
+     * It must not be passed directly to
      * expression_tree_walker().
      */
 
@@ -86,7 +80,7 @@ force_cte_materialization_walker(Node *node, void *context)
         ListCell *lc;
 
         /*
-         * Analizza tutte le CTE definite a questo livello.
+         * Process all CTEs defined at this level.
          */
         foreach(lc, query->cteList)
         {
@@ -95,15 +89,15 @@ force_cte_materialization_walker(Node *node, void *context)
             cte = lfirst_node(CommonTableExpr, lc);
 
             /*
-             * Se l'utente ha scritto esplicitamente:
+             * If the user explicitly wrote:
              *
              *   AS MATERIALIZED
              *
-             * oppure:
+             * or:
              *
              *   AS NOT MATERIALIZED
              *
-             * non modifichiamo nulla.
+             * we don't change anything.
              */
             if (cte->ctematerialized != CTEMaterializeDefault)
                 continue;
@@ -126,22 +120,13 @@ force_cte_materialization_walker(Node *node, void *context)
                 default:
 
                     /*
-                     * Nessuna modifica.
+                     * No change.
                      */
                     break;
             }
         }
 
-        /*
-         * flags = 0 è intenzionale.
-         *
-         * query_tree_walker() attraversa comunque le subquery
-         * delle RTE, salvo specificare esplicitamente
-         * QTW_IGNORE_RT_SUBQUERIES.
-         *
-         * Attraversa inoltre le query contenute nelle CTE salvo
-         * QTW_IGNORE_CTE_SUBQUERIES.
-         */
+
         return query_tree_walker(
             query,
             force_cte_materialization_walker,
@@ -151,7 +136,7 @@ force_cte_materialization_walker(Node *node, void *context)
     }
 
     /*
-     * Gli altri nodi possono essere attraversati normalmente.
+     * Other nodes can be traversed normally.
      */
     return expression_tree_walker(
         node,
@@ -162,7 +147,7 @@ force_cte_materialization_walker(Node *node, void *context)
 
 
 /*
- * Entry point interno.
+ * Internal entry point.
  */
 static void
 force_cte_materialization(Query *query)
@@ -183,7 +168,7 @@ force_cte_materialization(Query *query)
 /*
  * post_parse_analyze_hook
  *
- * PostgreSQL 19 ha reso const il JumbleState.
+ * PostgreSQL 19 made JumbleState const.
  */
 #if PG_VERSION_NUM >= 190000
 
@@ -215,13 +200,12 @@ pg_cte_force_post_parse_analyze(
 
 {
     /*
-     * Prima applichiamo la nostra modifica.
+     * First, apply our modification.
      */
     force_cte_materialization(query);
 
     /*
-     * Poi richiamiamo l'eventuale hook precedentemente
-     * installato.
+     * Then call any previously installed hook.
      */
     if (prev_post_parse_analyze_hook)
     {
@@ -246,7 +230,7 @@ pg_cte_force_post_parse_analyze(
 
 
 /*
- * Inizializzazione estensione.
+ * Extension initialization.
  */
 void
 _PG_init(void)
@@ -254,10 +238,10 @@ _PG_init(void)
     DefineCustomEnumVariable(
         "pg_cte_force.mode",
 
-        "Imposta globalmente il comportamento delle CTE "
-        "senza annotazione MATERIALIZED/NOT MATERIALIZED.",
+        "Globally sets the behavior of CTEs "
+        "without a MATERIALIZED/NOT MATERIALIZED annotation.",
 
-        "Valori ammessi: default, materialized, not_materialized.",
+        "Allowed values: default, materialized, not_materialized.",
 
         &cte_force_mode,
 
@@ -276,13 +260,13 @@ _PG_init(void)
 
 
     /*
-     * Salva l'eventuale hook esistente.
+     * Save any existing hook.
      */
     prev_post_parse_analyze_hook =
         post_parse_analyze_hook;
 
     /*
-     * Installa il nostro hook.
+     * Install our hook.
      */
     post_parse_analyze_hook =
         pg_cte_force_post_parse_analyze;
@@ -290,16 +274,16 @@ _PG_init(void)
 
 
 /*
- * Rimozione estensione.
+ * Extension teardown.
  */
 void
 _PG_fini(void)
 {
     /*
-     * Ripristiniamo l'hook precedente SOLO se siamo
-     * ancora noi ad essere installati.
+     * Only restore the previous hook if we are still
+     * the ones installed.
      *
-     * È leggermente più difensivo rispetto a:
+     * This is slightly more defensive than simply doing:
      *
      * post_parse_analyze_hook =
      *     prev_post_parse_analyze_hook;

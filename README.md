@@ -30,18 +30,6 @@ Il server Postgres (default: versione 18, vedi `PG_MAJOR` in
 `docker-compose.yml`) parte subito con l'utente `postgres` / password
 `devpass`, database `extdev`, esposto su `localhost:5433`.
 
-## Compilare l'estensione
-
-```bash
-docker compose exec pg-dev bash
-cd /extension
-./build.sh
-```
-
-`make install` scrive il `.so` nel `pkglibdir` della stessa istanza di
-Postgres in esecuzione nel container, quindi non serve copiare nulla altrove.
-
-## Due modalità di test
 
 ### 1. Caricamento manuale per sessione (iterazione rapida, no restart)
 
@@ -82,7 +70,7 @@ si applica a ogni nuova connessione su `extdev`, senza bisogno di `LOAD`.
 `postgresql.conf` (o via `ALTER SYSTEM`) **prima** di aver mai fatto
 `make install`, il riavvio di Postgres fallisce perché il `.so` non esiste
 ancora. Builda sempre l'estensione almeno una volta prima di abilitare il
-preload.
+preload
 
 ## Usare Claude Code nel container
 

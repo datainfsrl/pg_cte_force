@@ -1,7 +1,7 @@
-ARG PG_MAJOR=18
+ARG PG_MAJOR=19
 FROM postgres:${PG_MAJOR}-bookworm
 
-ARG PG_MAJOR=18
+ARG PG_MAJOR=19
 ENV DEBIAN_FRONTEND=noninteractive \
     PG_MAJOR=${PG_MAJOR}
 
