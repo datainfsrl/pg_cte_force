@@ -5,7 +5,10 @@
 
 #include "nodes/parsenodes.h"
 #include "nodes/nodeFuncs.h"
+
+#if PG_VERSION_NUM >= 150000
 #include "nodes/queryjumble.h"
+#endif
 
 #include "parser/analyze.h"
 #include "parser/parse_node.h"
