@@ -8,26 +8,27 @@ ARG PG_MAJOR=19
 ENV DEBIAN_FRONTEND=noninteractive \
     PG_MAJOR=${PG_MAJOR}
 
-# --- Toolchain di build per l'estensione ---------------------------------
+# --- Toolchain di build for the extension ---------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        postgresql-server-dev-${PG_MAJOR} \
-        git \
-        curl \
-        ca-certificates \
-        gnupg \
-        less \
-        vim \
-        gdb \
-        sudo \
-        locales \
+    build-essential \
+    postgresql-server-dev-${PG_MAJOR} \
+    git \
+    curl \
+    ca-certificates \
+    gnupg \
+    less \
+    vim \
+    gdb \
+    sudo \
+    locales \
+    nano \
     && rm -rf /var/lib/apt/lists/*
 
-# --- Node.js 22.x ---------------------------------------------------------
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN npm install -g @anthropic-ai/claude-code
-
+# First compile the extension, then install it into the PostgreSQL server's library directory
 WORKDIR /extension
+
+COPY ./src/ /extension/
+
+RUN make clean \
+    && make \
+    && make install

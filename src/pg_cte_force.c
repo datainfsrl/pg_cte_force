@@ -12,6 +12,10 @@
 
 PG_MODULE_MAGIC;
 
+//Protoypes for _PG_init and _PG_fini.
+void _PG_init(void);
+void _PG_fini(void);
+
 
 /*
  * Operating modes.

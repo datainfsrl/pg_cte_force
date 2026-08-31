@@ -1,16 +1,18 @@
-# pg_cte_force — ambiente Docker di sviluppo
+# pg_cte_force — Docker development environment
 
-Container per compilare/testare `pg_cte_force` e per far lavorare Claude Code
-direttamente dentro l'ambiente (stessa toolchain, stesso `pg_config`, stesso
-server Postgres).
+Container to build/test `pg_cte_force` using the same toolchain, the same
+`pg_config`, and the same Postgres server you'd get in production.
 
-## Struttura
+## Structure
 
 ```
 .
 ├── Dockerfile
 ├── docker-compose.yml
-└── src/                      <-- montato in /extension nel container
+├── init/                      <-- mounted at /docker-entrypoint-initdb.d in the container
+│   ├── 001-shared.sh          (sets shared_preload_libraries and restarts Postgres)
+│   └── 002-testdatabase.sql   (creates a "testdb" database with sample data)
+└── src/                       <-- mounted at /extension in the container
     ├── pg_cte_force.c
     ├── pg_cte_force.control
     ├── pg_cte_force--1.0.sql
@@ -18,20 +20,29 @@ server Postgres).
     └── build.sh
 ```
 
-## Avvio
+The scripts in `init/` are executed by Postgres only once, the first time the
+`pgdata` volume is initialized (in alphabetical order). They don't run again
+on subsequent restarts of an already-initialized volume.
+
+## Getting started
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...      # necessario solo se vuoi usare `claude` dentro il container
 docker compose build
 docker compose up -d
 ```
 
-Il server Postgres (default: versione 18, vedi `PG_MAJOR` in
-`docker-compose.yml`) parte subito con l'utente `postgres` / password
-`devpass`, database `extdev`, esposto su `localhost:5433`.
+The Postgres server (default: version 19, see `PG_MAJOR` in
+`docker-compose.yml`) starts right away with user `postgres` / password
+`devpass`, database `extdev`, exposed on `localhost:5433`.
 
+On the first run against an empty `pgdata` volume, the scripts in `init/`
+run automatically: `001-shared.sh` already sets
+`shared_preload_libraries = 'pg_cte_force'` and restarts the server, while
+`002-testdatabase.sql` creates a `testdb` database with a sample table
+(`test_table`, 1000 rows, indexed on `name`). If you're reusing an existing
+`pgdata` volume, these scripts are skipped.
 
-### 1. Caricamento manuale per sessione (iterazione rapida, no restart)
+### 1. Manual per-session load (fast iteration, no restart)
 
 ```sql
 LOAD 'pg_cte_force';
@@ -40,86 +51,78 @@ EXPLAIN (COSTS OFF)
 WITH x AS (SELECT * FROM tbl WHERE ...) SELECT * FROM x JOIN ...;
 ```
 
-Comodo mentre modifichi il codice: ricompili, riapri la sessione psql, `LOAD`
-di nuovo. Nessun riavvio del server.
+Handy while you're changing the code: rebuild, reopen the psql session,
+`LOAD` again. No server restart needed.
 
-### 2. shared_preload_libraries (comportamento "di produzione")
+### 2. shared_preload_libraries ("production" behavior)
 
-Questo è il caso reale che avevi in mente — `ALTER DATABASE ... SET` che si
-applica automaticamente a ogni nuova sessione, senza `LOAD` esplicito:
+On a freshly created `pgdata` volume this is already done automatically by
+`init/001-shared.sh` (see above). The steps below are only needed if you're
+working on an existing volume, or want to redo this manually:
 
 ```sql
 ALTER SYSTEM SET shared_preload_libraries = 'pg_cte_force';
 ```
 
-poi, da fuori il container:
+then, from outside the container:
 
 ```bash
 docker compose restart pg-dev
 ```
 
-A quel punto:
+At that point:
 
 ```sql
 ALTER DATABASE extdev SET pg_cte_force.mode = 'not_materialized';
 ```
 
-si applica a ogni nuova connessione su `extdev`, senza bisogno di `LOAD`.
+applies to every new connection to `extdev`, with no need for `LOAD`.
 
-⚠️ Attenzione all'ordine: se metti `shared_preload_libraries` in
-`postgresql.conf` (o via `ALTER SYSTEM`) **prima** di aver mai fatto
-`make install`, il riavvio di Postgres fallisce perché il `.so` non esiste
-ancora. Builda sempre l'estensione almeno una volta prima di abilitare il
-preload
+⚠️ Watch the ordering: if you set `shared_preload_libraries` in
+`postgresql.conf` (or via `ALTER SYSTEM`) **before** ever having run
+`make install`, the Postgres restart fails because the `.so` file doesn't
+exist yet. Always build the extension at least once before enabling the
+preload.
 
-## Usare Claude Code nel container
+If you'd rather isolate the agent from root, consider adding a dedicated
+`dev` user to the Dockerfile and running
+`docker compose exec -u dev pg-dev bash` for interactive sessions (the
+Postgres server itself stays managed by the `postgres` user as in the
+original image).
 
-```bash
-docker compose exec pg-dev bash
-claude
-```
+## Testing against another major version
 
-Il container gira come `root` (necessario per l'entrypoint originale
-dell'immagine `postgres`, che poi fa `gosu postgres` per il processo del
-server). Se Claude Code si rifiuta di partire come root, usa:
-
-```bash
-claude --dangerously-skip-permissions
-```
-
-Se preferisci isolare l'agente da root, valuta di creare un utente `dev`
-dedicato nel Dockerfile e lanciare `docker compose exec -u dev pg-dev bash`
-per le sessioni interattive (il server Postgres resta gestito dall'utente
-`postgres` come da immagine originale).
-
-## Testare su un'altra major version
+`PG_MAJOR` selects which `postgresql-server-dev-*` headers get installed;
+the base image itself is picked by `PG_VERSION` (the official `postgres`
+image tag, e.g. `14`, `17`, or `19beta3` while 19 is still in beta). To test
+a different major version you need to override both:
 
 ```bash
-docker compose build --build-arg PG_MAJOR=14
+docker compose build --build-arg PG_MAJOR=14 --build-arg PG_VERSION=14
 docker compose up -d
 ```
 
-Nota: essendo un volume Docker (`pgdata`) diverso per data directory
-incompatibili tra major version, se cambi versione conviene ripartire da un
-volume pulito:
+Note: since the `pgdata` Docker volume holds a data directory that's
+incompatible across major versions, switching versions is best done from a
+clean volume:
 
 ```bash
 docker compose down -v
-docker compose build --build-arg PG_MAJOR=14
+docker compose build --build-arg PG_MAJOR=14 --build-arg PG_VERSION=14
 docker compose up -d
 ```
 
-## Nota sulla struttura dati (Postgres 18+)
+## Note on the data layout (Postgres 18+)
 
-Dalla versione 18 le immagini ufficiali `postgres` sono cambiate: i dati
-vanno montati su `/var/lib/postgresql` (non più su
-`/var/lib/postgresql/data`), perché ora usano una struttura di directory
-compatibile con `pg_ctlcluster` (sottodirectory per major version, per
-supportare `pg_upgrade --link` senza problemi di mount point). Il
-`docker-compose.yml` in questo repo è già impostato correttamente per PG18+.
+Starting with version 18, the official `postgres` images changed: data must
+be mounted at `/var/lib/postgresql` (no longer at
+`/var/lib/postgresql/data`), because they now use a directory layout
+compatible with `pg_ctlcluster` (per-major-version subdirectories, to
+support `pg_upgrade --link` without mount-point issues). The
+`docker-compose.yml` in this repo is already set up correctly for PG18+.
 
-Se stai passando da una versione precedente di questo setup (o da un volume
-creato con un'immagine Postgres <18), l'errore tipico è:
+If you're migrating from an earlier version of this setup (or from a volume
+created with a Postgres image <18), the typical error is:
 
 ```
 Error: in 18+, these Docker images are configured to store database data in a
@@ -128,15 +131,15 @@ Error: in 18+, these Docker images are configured to store database data in a
          /var/lib/postgresql/data (unused mount/volume)
 ```
 
-Soluzione: il volume vecchio non è riusabile nel nuovo formato, va ricreato:
+Solution: the old volume can't be reused in the new format, it needs to be
+recreated:
 
 ```bash
 docker compose down -v
 docker compose up -d
 ```
 
-Se invece devi testare esplicitamente una versione < 18 (es. `PG_MAJOR=14`),
-il mount tradizionale su `/var/lib/postgresql/data` va bene per quelle
-immagini — ma dato che questo compose è pensato per PG18 di default, se
-scendi di versione ricordati di verificare il path corretto per l'immagine
-specifica che stai usando.
+If instead you explicitly need to test a version < 18 (e.g. `PG_MAJOR=14`),
+the traditional mount at `/var/lib/postgresql/data` is fine for those
+images — but since this compose file defaults to PG18+, remember to check
+the correct path for the specific image you're using if you go lower.

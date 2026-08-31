@@ -50,9 +50,38 @@ CREATE EXTENSION pg_cte_force;
 
 Note: the extension does not expose any SQL objects (functions, types, tables). The `pg_cte_force--1.0.sql` script exists only because `CREATE EXTENSION` requires one; all behavior is implemented in C and activated by `_PG_init()`.
 
+## Loading the extension
+
+Because `pg_cte_force` exposes no SQL objects, `CREATE EXTENSION` only
+registers it in the catalog (useful for `pg_dump`/dependency tracking) — it
+does **not** load the shared library into the backend, so by itself it does
+not install the hook or activate the GUC. `_PG_init()` only runs once the
+library is actually loaded, which happens in one of two ways:
+
+- **Per session**, handy while developing (no server restart needed):
+
+  ```sql
+  LOAD 'pg_cte_force';
+  ```
+
+- **Cluster-wide**, loaded automatically for every new session:
+
+  ```
+  # postgresql.conf
+  shared_preload_libraries = 'pg_cte_force'
+  ```
+
+  then restart the server. The `.so` must already be installed (`make
+  install` / `build.sh`) *before* the restart, otherwise Postgres fails to
+  start.
+
 ## Usage
 
 ```sql
+-- Needed once per session unless pg_cte_force is already in
+-- shared_preload_libraries (see "Loading the extension" above)
+LOAD 'pg_cte_force';
+
 -- Force all unannotated CTEs to be materialized
 SET pg_cte_force.mode = 'materialized';
 
@@ -63,7 +92,9 @@ SELECT * FROM t JOIN other_table ON ...;
 SET pg_cte_force.mode = 'default';
 ```
 
-To make the setting persistent instead of session-scoped:
+To make the setting persistent instead of session-scoped (this only takes
+effect if `pg_cte_force` is also in `shared_preload_libraries` — otherwise
+the value is stored but never read, since the hook is never installed):
 
 ```sql
 -- Cluster-wide default (requires a config reload, e.g. SELECT pg_reload_conf();)

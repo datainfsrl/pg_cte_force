@@ -3,19 +3,29 @@ services:
     build:
       context: .
       args:
-        PG_MAJOR: "19"          # cambia per testare su 12..18
+        PG_MAJOR: "19"          # Change this to test PostgreSQL versions 12..19
+
     container_name: pg_cte_force_dev
+
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: devpass
       POSTGRES_DB: extdev
-      # Passata dall'host: esporta ANTHROPIC_API_KEY prima di `docker compose up`
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
     ports:
-      - "5433:5432"             # 5433 per non collidere con un postgres locale
+      - "5433:5432"             # Use port 5433 to avoid conflicts with a local PostgreSQL instance
+
     volumes:
-      - ./src:/extension         # codice sorgente dell'estensione, editabile da host/Claude
-      - pgdata:/var/lib/postgresql   # dalla 18 il mount va sulla dir padre, non su .../data
+      # Extension source code, editable directly from the host/Claude
+      - ./src:/extension
+
+      - pgdata:/var/lib/postgresql
+      
+      # Database initialization scripts.
+      # These scripts are executed only when the database cluster is initialized
+      # for the first time.
+      - ./init:/docker-entrypoint-initdb.d/
+
     stdin_open: true
     tty: true
 

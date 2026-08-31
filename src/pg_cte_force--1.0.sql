@@ -1,4 +1,4 @@
--- pg_cte_force non espone oggetti SQL: tutto il comportamento
--- passa dal GUC "pg_cte_force.mode" e dall'hook post_parse_analyze
--- definiti in _PG_init(). Questo script esiste solo perché
--- CREATE EXTENSION lo richiede.
+-- pg_cte_force does not expose any SQL objects: all behavior
+-- is controlled through the "pg_cte_force.mode" GUC and the
+-- post_parse_analyze hook defined in _PG_init().
+-- This script exists only because CREATE EXTENSION requires it.
