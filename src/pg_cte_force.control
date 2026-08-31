@@ -1,3 +1,5 @@
 comment = 'Force CTE materialization behavior via GUC'
 default_version = '1.0'
 relocatable = true
+# Author: Enrico Pirozzi
+# License: GPL-3.0

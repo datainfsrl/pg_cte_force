@@ -124,8 +124,12 @@ The code handles the differences in the `post_parse_analyze_hook` signature acro
 
 - **>= 19**: `JumbleState` passed as `const`;
 - **>= 14 and < 19**: non-const `JumbleState`;
-- **< 14**: hook without the `JumbleState` parameter.
+- **< 14**: Not working
+
+## Author
+
+Enrico Pirozzi
 
 ## License
 
-Not specified.
+GPL-3.0. See [LICENSE](../LICENSE) for the full text.
