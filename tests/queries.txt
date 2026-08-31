@@ -1,0 +1,27 @@
+sudo docker-compose down
+sudo docker volume rm pg_cte_force_pgdata
+sudo docker-compose build --force-rm --no-cache
+sudo docker exec -it pg_cte_force_dev /bin/bash
+
+su - postgres
+psql
+
+\c testdb;
+
+testdb=# show pg_cte_force.mode ;
+ pg_cte_force.mode 
+-------------------
+ materialized
+(1 row)
+
+
+testdb=# explain with x as (select * from test_table ) select * from x limit 1;
+                              QUERY PLAN                               
+-----------------------------------------------------------------------
+ Limit  (cost=16.00..16.02 rows=1 width=36)
+   CTE x
+     ->  Seq Scan on test_table  (cost=0.00..16.00 rows=1000 width=11)
+   ->  CTE Scan on x  (cost=0.00..20.00 rows=1000 width=36)
+(4 rows)
+
+
