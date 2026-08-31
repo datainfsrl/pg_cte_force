@@ -1,3 +1,7 @@
+# pg_cte_force - VM INSTALL
+
+For the VM install please read file vm/README.md
+
 # pg_cte_force — Docker development environment
 
 Container to build/test `pg_cte_force` using the same toolchain, the same
