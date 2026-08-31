@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        PG_MAJOR: "19"          # Change this to test PostgreSQL versions 12..19
+        PG_MAJOR: "14"          # Change this to test PostgreSQL versions 12..19
 
     container_name: pg_cte_force_dev
 

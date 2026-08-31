@@ -6,10 +6,6 @@
 #include "nodes/parsenodes.h"
 #include "nodes/nodeFuncs.h"
 
-#if PG_VERSION_NUM >= 150000
-#include "nodes/queryjumble.h"
-#endif
-
 #include "parser/analyze.h"
 #include "parser/parse_node.h"
 
@@ -186,7 +182,7 @@ pg_cte_force_post_parse_analyze(
     const JumbleState *jstate
 )
 
-#elif PG_VERSION_NUM >= 140000
+#else
 
 static void
 pg_cte_force_post_parse_analyze(
@@ -195,43 +191,17 @@ pg_cte_force_post_parse_analyze(
     JumbleState *jstate
 )
 
-#else
-
-static void
-pg_cte_force_post_parse_analyze(
-    ParseState *pstate,
-    Query *query
-)
-
 #endif
-
 {
-    /*
-     * First, apply our modification.
-     */
     force_cte_materialization(query);
 
-    /*
-     * Then call any previously installed hook.
-     */
     if (prev_post_parse_analyze_hook)
     {
-#if PG_VERSION_NUM >= 140000
-
         prev_post_parse_analyze_hook(
             pstate,
             query,
             jstate
         );
-
-#else
-
-        prev_post_parse_analyze_hook(
-            pstate,
-            query
-        );
-
-#endif
     }
 }
 

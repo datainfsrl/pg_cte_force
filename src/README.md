@@ -11,16 +11,20 @@ The extension installs a hook on `post_parse_analyze_hook`. After query analysis
 - if the CTE was written with `AS MATERIALIZED` or `AS NOT MATERIALIZED`, it is left untouched;
 - otherwise its materialization behavior is set according to the active mode.
 
+## NOTE
+
+This extension works for PostgreSQL >= 14.x
+
 ## GUC parameter
 
 ```
 pg_cte_force.mode = default | materialized | not_materialized
 ```
 
-| Value | Effect |
-|---|---|
-| `default` | No change: standard PostgreSQL behavior applies. |
-| `materialized` | All CTEs without an explicit annotation are forced to `MATERIALIZED`. |
+| Value              | Effect                                                                    |
+| ------------------ | ------------------------------------------------------------------------- |
+| `default`          | No change: standard PostgreSQL behavior applies.                          |
+| `materialized`     | All CTEs without an explicit annotation are forced to `MATERIALIZED`.     |
 | `not_materialized` | All CTEs without an explicit annotation are forced to `NOT MATERIALIZED`. |
 
 The parameter is `PGC_USERSET`, so it can be set per session, per user, per database, or in `postgresql.conf`.
@@ -72,7 +76,7 @@ library is actually loaded, which happens in one of two ways:
   ```
 
   then restart the server. The `.so` must already be installed (`make
-  install` / `build.sh`) *before* the restart, otherwise Postgres fails to
+install` / `build.sh`) _before_ the restart, otherwise Postgres fails to
   start.
 
 ## Usage
@@ -106,13 +110,13 @@ ALTER DATABASE mydb SET pg_cte_force.mode = 'materialized';
 
 ## Project files
 
-| File | Description |
-|---|---|
-| `pg_cte_force.c` | Extension source code: GUC, hook, and query tree walker. |
-| `pg_cte_force--1.0.sql` | Empty SQL script required by `CREATE EXTENSION`. |
-| `pg_cte_force.control` | Extension control file (version, description, relocatable). |
-| `Makefile` | PGXS-based build. |
-| `build.sh` | Convenience script for building and installing. |
+| File                    | Description                                                 |
+| ----------------------- | ----------------------------------------------------------- |
+| `pg_cte_force.c`        | Extension source code: GUC, hook, and query tree walker.    |
+| `pg_cte_force--1.0.sql` | Empty SQL script required by `CREATE EXTENSION`.            |
+| `pg_cte_force.control`  | Extension control file (version, description, relocatable). |
+| `Makefile`              | PGXS-based build.                                           |
+| `build.sh`              | Convenience script for building and installing.             |
 
 ## Compatibility
 
