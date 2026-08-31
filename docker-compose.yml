@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        PG_MAJOR: "18"          # cambia per testare su 12..18
+        PG_MAJOR: "19"          # cambia per testare su 12..18
     container_name: pg_cte_force_dev
     environment:
       POSTGRES_USER: postgres
