@@ -22,7 +22,7 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
     && sudo rm -rf /var/lib/apt/lists/*
 
 
-git clone git@github.com:datainfsrl/pg_cte_force.git
+git clone https://github.com/datainfsrl/pg_cte_force.git
 
 cd pg_cte_force/src
 
